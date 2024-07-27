@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battleship Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .game-container {
+            display: flex;
+            gap: 20px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-gap: 1px;
+            background-color: #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: #fff;
+            border: 1px solid #999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        .ship {
+            background-color: #999;
+        }
+        .hit {
+            background-color: #ff6b6b;
+        }
+        .miss {
+            background-color: #4ecdc4;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        button {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .scoreboard {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .timer {
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .win-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 48px;
+            color: #fff;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+  <div class="game-container">
+      <div>
+          <h2>Player 1</h2>
+          <div id="board1" class="board"></div>
+      </div>
+      <div>
+          <h2>Player 2</h2>
+          <div id="board2" class="board"></div>
+      </div>
+      <div class="controls">
+          <div class="scoreboard">
+              <h3>Scoreboard</h3>
+              <p>Player 1: <span id="score1">0</span></p>
+              <p>Player 2: <span id="score2">0</span></p>
+          </div>
+          <div class="timer" id="timer">30</div>
+          <button id="startGame">Start Game</button>
+          <button id="resetGame">Reset Game</button>
+      </div>
+  </div>
+
+  <script>
+      const BOARD_SIZE = 10;
+      const SHIP_SIZES = [5, 4, 3, 3, 2];
+      let playerNumber;
+      let currentPlayer = 1;
+      let gameActive = false;
+      let timer;
+      let timeLeft = 30;
+
+      const boards = {
+          1: createBoard(),
+          2: createBoard()
+      };
+
+      const scores = {
+          1: 0,
+          2: 0
+      };
+
+      const socket = new WebSocket(`ws://${window.location.host}`);
+      // const socket = new WebSocket(`ws://your-server-url.com`); if using online deployed
+
+      socket.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === 'player') {
+              playerNumber = data.number;
+              console.log(`You are Player ${playerNumber}`);
+          } else if (data.type === 'gameState') {
+              updateGameState(data);
+          }
+      };
+
+      function updateGameState(state) {
+          currentPlayer = state.currentPlayer;
+          gameActive = state.gameActive;
+          if (state.boards[1]) boards[1] = state.boards[1];
+          if (state.boards[2]) boards[2] = state.boards[2];
+          updateBoards();
+          updateTimerDisplay();
+      }
+
+      function createBoard() {
+          return Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+      }
+
+      function initializeGame() {
+          const board1 = document.getElementById('board1');
+          const board2 = document.getElementById('board2');
+
+          board1.innerHTML = '';
+          board2.innerHTML = '';
+
+          for (let i = 0; i < BOARD_SIZE; i++) {
+              for (let j = 0; j < BOARD_SIZE; j++) {
+                  const cell1 = createCell(1, i, j);
+                  const cell2 = createCell(2, i, j);
+                  board1.appendChild(cell1);
+                  board2.appendChild(cell2);
+              }
+          }
+
+          placeShipsRandomly(playerNumber);
+          updateBoards();
+      }
+
+      function createCell(player, row, col) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+          cell.addEventListener('click', () => cellClick(player, row, col));
+          return cell;
+      }
+
+      function placeShipsRandomly(player) {
+          SHIP_SIZES.forEach(size => {
+              let placed = false;
+              while (!placed) {
+                  const row = Math.floor(Math.random() * BOARD_SIZE);
+                  const col = Math.floor(Math.random() * BOARD_SIZE);
+                  const horizontal = Math.random() < 0.5;
+
+                  if (canPlaceShip(player, row, col, size, horizontal)) {
+                      placeShip(player, row, col, size, horizontal);
+                      placed = true;
+                  }
+              }
+          });
+      }
+
+      function canPlaceShip(player, row, col, size, horizontal) {
+          for (let i = 0; i < size; i++) {
+              if (horizontal) {
+                  if (col + i >= BOARD_SIZE || boards[player][row][col + i] !== 0) {
+                      return false;
+                  }
+              } else {
+                  if (row + i >= BOARD_SIZE || boards[player][row + i][col] !== 0) {
+                      return false;
+                  }
+              }
+          }
+          return true;
+      }
+
+      function placeShip(player, row, col, size, horizontal) {
+          for (let i = 0; i < size; i++) {
+              if (horizontal) {
+                  boards[player][row][col + i] = 1;
+              } else {
+                  boards[player][row + i][col] = 1;
+              }
+          }
+      }
+
+      function cellClick(player, row, col) {
+          if (!gameActive || player === playerNumber || currentPlayer !== playerNumber) return;
+
+          if (boards[player][row][col] === 1) {
+              boards[player][row][col] = 2; // Hit
+          } else if (boards[player][row][col] === 0) {
+              boards[player][row][col] = 3; // Miss
+          }
+
+          updateBoards();
+          checkWinCondition();
+          switchPlayer();
+
+          socket.send(JSON.stringify({
+              type: 'move',
+              player: player,
+              board: boards[player],
+              currentPlayer: currentPlayer,
+              gameActive: gameActive
+          }));
+      }
+
+      function updateBoards() {
+          for (let player = 1; player <= 2; player++) {
+              const board = document.getElementById(`board${player}`);
+              const cells = board.getElementsByClassName('cell');
+
+              for (let i = 0; i < BOARD_SIZE; i++) {
+                  for (let j = 0; j < BOARD_SIZE; j++) {
+                      const index = i * BOARD_SIZE + j;
+                      const cell = cells[index];
+
+                      if (player === playerNumber) {
+                          if (boards[player][i][j] === 1) {
+                              cell.classList.add('ship');
+                          }
+                      }
+                      if (boards[player][i][j] === 2) {
+                          cell.classList.add('hit');
+                      } else if (boards[player][i][j] === 3) {
+                          cell.classList.add('miss');
+                      }
+                  }
+              }
+          }
+      }
+
+      function switchPlayer() {
+          currentPlayer = currentPlayer === 1 ? 2 : 1;
+          resetTimer();
+      }
+
+      function checkWinCondition() {
+          for (let player = 1; player <= 2; player++) {
+              if (boards[player].every(row => row.every(cell => cell !== 1))) {
+                  gameActive = false;
+                  const winner = player === 1 ? 2 : 1;
+                  scores[winner]++;
+                  updateScoreboard();
+                  showWinAnimation(winner);
+              }
+          }
+      }
+
+      function updateScoreboard() {
+          document.getElementById('score1').textContent = scores[1];
+          document.getElementById('score2').textContent = scores[2];
+      }
+
+      function showWinAnimation(winner) {
+          const winElement = document.createElement('div');
+          winElement.className = 'win-animation';
+          winElement.textContent = `Player ${winner} wins!`;
+          document.body.appendChild(winElement);
+
+          setTimeout(() => {
+              document.body.removeChild(winElement);
+          }, 3000);
+      }
+
+      function resetTimer() {
+          clearInterval(timer);
+          timeLeft = 30;
+          updateTimerDisplay();
+
+          timer = setInterval(() => {
+              timeLeft--;
+              updateTimerDisplay();
+
+              if (timeLeft === 0) {
+                  switchPlayer();
+              }
+          }, 1000);
+      }
+
+      function updateTimerDisplay() {
+          document.getElementById('timer').textContent = timeLeft;
+      }
+
+      document.getElementById('startGame').addEventListener('click', () => {
+          socket.send(JSON.stringify({ type: 'start' }));
+      });
+
+      document.getElementById('resetGame').addEventListener('click', () => {
+          socket.send(JSON.stringify({ type: 'reset' }));
+          initializeGame();
+      });
+
+      initializeGame();
+  </script>
+</body>
+</html>
