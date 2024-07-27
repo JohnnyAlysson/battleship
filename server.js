@@ -8,70 +8,88 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 
-app.use(express.static(path.join("__dirname")));
+app.use(express.static(path.join(__dirname)));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'battleship.html'));
 });
 
-const clients = new Set();
+const clients = new Map();
 let gameState = {
     boards: {},
     currentPlayer: 1,
-    gameActive: false
+    gameActive: false,
+    playersReady: 0
 };
 
 wss.on('connection', (ws) => {
-    clients.add(ws);
+    console.log('New client connected');
 
-    if (clients.size === 1) {
-        ws.send(JSON.stringify({ type: 'player', number: 1 }));
-    } else if (clients.size === 2) {
-        ws.send(JSON.stringify({ type: 'player', number: 2 }));
-        broadcastGameState();
-    } else {
-        ws.send(JSON.stringify({ type: 'error', message: 'Game is full' }));
-        ws.close();
+    if (clients.size >= 2) {
+      console.log('Game is full, rejecting connection');  // Add this line
+      ws.close();
+      return;
     }
 
-    ws.on('message', (message) => {
-        const data = JSON.parse(message);
-        
-        if (data.type === 'move') {
-            gameState.boards[data.player] = data.board;
-            gameState.currentPlayer = data.currentPlayer;
-            gameState.gameActive = data.gameActive;
-        } else if (data.type === 'start') {
-            gameState.gameActive = true;
-            gameState.currentPlayer = 1;
-        } else if (data.type === 'reset') {
-            gameState = {
-                boards: {},
-                currentPlayer: 1,
-                gameActive: false
-            };
-        }
+    const playerNumber = clients.size + 1;
+    clients.set(ws, playerNumber);
 
-        broadcastGameState();
+    console.log(`Assigning player number: ${playerNumber}`);
+    ws.send(JSON.stringify({ type: 'player', number: playerNumber }));
+
+    if (clients.size === 2) {
+      console.log('Two players connected, waiting for both to start');
+      broadcastGameState();
+    }
+
+
+    ws.on('message', (message) => {
+      console.log('Received message:', message);
+      const data = JSON.parse(message);
+      
+      if (data.type === 'move') {
+          if (gameState.currentPlayer === playerNumber && gameState.gameActive) {
+              gameState.boards[data.player] = data.board;
+              gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+              broadcastGameState();
+          }
+      } else if (data.type === 'start') {
+          gameState.playersReady++;
+          if (gameState.playersReady === 2) {
+              gameState.gameActive = true;
+              gameState.currentPlayer = 1;
+              broadcastGameState();
+          }
+      } else if (data.type === 'reset') {
+          gameState = {
+              boards: {},
+              currentPlayer: 1,
+              gameActive: false,
+              playersReady: 0
+          };
+          broadcastGameState();
+      }
     });
 
     ws.on('close', () => {
+        console.log('Client disconnected');
         clients.delete(ws);
         if (clients.size === 0) {
             gameState = {
                 boards: {},
                 currentPlayer: 1,
-                gameActive: false
+                gameActive: false,
+                playersReady: 0
             };
         }
     });
 });
 
 function broadcastGameState() {
-    const message = JSON.stringify({ type: 'gameState', ...gameState });
-    for (const client of clients) {
-        client.send(message);
-    }
+  const message = JSON.stringify({ type: 'gameState', ...gameState });
+  for (const [client, playerNumber] of clients) {
+      client.send(message);
+  }
 }
 
 const PORT = process.env.PORT || 3000;

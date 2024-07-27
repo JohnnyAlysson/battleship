@@ -103,6 +103,7 @@
           <div class="timer" id="timer">30</div>
           <button id="startGame">Start Game</button>
           <button id="resetGame">Reset Game</button>
+          <div id="gameStatus"></div>
       </div>
   </div>
 
@@ -124,19 +125,41 @@
           1: 0,
           2: 0
       };
+      
 
       const socket = new WebSocket(`ws://${window.location.host}`);
       // const socket = new WebSocket(`ws://your-server-url.com`); if using online deployed
 
+      socket.onopen = () => {
+            console.log('WebSocket connection established');
+        };
+
       socket.onmessage = (event) => {
+          console.log('Received message:', event.data);
           const data = JSON.parse(event.data);
           if (data.type === 'player') {
               playerNumber = data.number;
               console.log(`You are Player ${playerNumber}`);
+              initializeGame();
           } else if (data.type === 'gameState') {
               updateGameState(data);
           }
       };
+
+      socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            showError('WebSocket error occurred.');
+      };
+
+      socket.onclose = (event) => {
+          console.log('WebSocket connection closed:', event);
+          showError('Connection lost. Please refresh the page.');
+      };
+
+      function showError(message) {
+          const statusElement = document.getElementById('gameStatus');
+          statusElement.textContent = message;
+      }
 
       function updateGameState(state) {
           currentPlayer = state.currentPlayer;
@@ -145,6 +168,26 @@
           if (state.boards[2]) boards[2] = state.boards[2];
           updateBoards();
           updateTimerDisplay();
+          updateControlsVisibility();
+          updateGameStatus();
+      }
+        
+      function updateControlsVisibility() {
+          const startButton = document.getElementById('startGame');
+          const resetButton = document.getElementById('resetGame');
+          startButton.disabled = gameActive;
+          resetButton.disabled = !gameActive;
+      }
+
+      function updateGameStatus() {
+          const statusElement = document.getElementById('gameStatus');
+          if (!gameActive) {
+              statusElement.textContent = 'Waiting for both players to start...';
+          } else if (currentPlayer === playerNumber) {
+              statusElement.textContent = 'Your turn!';
+          } else {
+              statusElement.textContent = 'Opponent\'s turn...';
+          }
       }
 
       function createBoard() {
@@ -169,6 +212,7 @@
 
           placeShipsRandomly(playerNumber);
           updateBoards();
+          updateControlsVisibility();
       }
 
       function createCell(player, row, col) {
@@ -222,25 +266,21 @@
       }
 
       function cellClick(player, row, col) {
-          if (!gameActive || player === playerNumber || currentPlayer !== playerNumber) return;
+            if (!gameActive || player === playerNumber || currentPlayer !== playerNumber) return;
 
-          if (boards[player][row][col] === 1) {
-              boards[player][row][col] = 2; // Hit
-          } else if (boards[player][row][col] === 0) {
-              boards[player][row][col] = 3; // Miss
-          }
+            if (boards[player][row][col] === 1) {
+                boards[player][row][col] = 2;
+                console.log("HIT");
+              } else if (boards[player][row][col] === 0) {
+                boards[player][row][col] = 3;
+                console.log("MISS");
+            }
 
-          updateBoards();
-          checkWinCondition();
-          switchPlayer();
-
-          socket.send(JSON.stringify({
-              type: 'move',
-              player: player,
-              board: boards[player],
-              currentPlayer: currentPlayer,
-              gameActive: gameActive
-          }));
+            socket.send(JSON.stringify({
+                type: 'move',
+                player: player,
+                board: boards[player]
+            }));
       }
 
       function updateBoards() {
@@ -274,16 +314,18 @@
       }
 
       function checkWinCondition() {
-          for (let player = 1; player <= 2; player++) {
-              if (boards[player].every(row => row.every(cell => cell !== 1))) {
-                  gameActive = false;
-                  const winner = player === 1 ? 2 : 1;
-                  scores[winner]++;
-                  updateScoreboard();
-                  showWinAnimation(winner);
-              }
-          }
-      }
+            for (let player = 1; player <= 2; player++) {
+                if (boards[player].every(row => row.every(cell => cell !== 1))) {
+                    gameActive = false;
+                    const winner = player === 1 ? 2 : 1;
+                    scores[winner]++;
+                    updateScoreboard();
+                    showWinAnimation(winner);
+                    return true;
+                }
+            }
+            return false;
+        }
 
       function updateScoreboard() {
           document.getElementById('score1').textContent = scores[1];
@@ -321,12 +363,13 @@
       }
 
       document.getElementById('startGame').addEventListener('click', () => {
-          socket.send(JSON.stringify({ type: 'start' }));
+            socket.send(JSON.stringify({ type: 'start' }));
+            document.getElementById('startGame').disabled = true;
       });
 
       document.getElementById('resetGame').addEventListener('click', () => {
-          socket.send(JSON.stringify({ type: 'reset' }));
-          initializeGame();
+            socket.send(JSON.stringify({ type: 'reset' }));
+            initializeGame();
       });
 
       initializeGame();
