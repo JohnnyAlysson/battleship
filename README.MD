@@ -58,11 +58,19 @@ A simple, turn-based multiplayer Battleship game built using HTML, CSS, and Java
 - Express
 - Socket.IO
 
+### Issues to be solved
+
+1. No player is winning: The winning condition should be achieved when one of the players destroys all the ship of the other player, but the checking winning condition function has a bug.
+2. No visual clue of a hit: When the player hits the piece of a ship, there should be a visual clue that was either a ship or water, Ship hit should be in red.
+3. The score system is not working properly, being updated correctly only for first player.
+4. countdown is not working.
+5. Still need to deploy on a server and maybe create a lobby system
+
 ---
 
 # Jogo de Batalha Naval Multijogador Simples
 
-Um jogo simples de Batalha Naval multijogador baseado em turnos, desenvolvido com HTML, CSS e JavaScript. Este jogo suporta 2 jogadores e inclui um limite de tempo de 30 segundos para cada turno. A interface do usuário é projetada para ser limpa e intuitiva, seguindo as melhores práticas de UX/UI para garantir facilidade de uso. O jogo possui um placar e uma animação simples de vitória.
+Um jogo simples de Batalha Naval multijogador baseado em turnos, desenvolvido com HTML, CSS e JavaScript. Este jogo suporta 2 jogadores e inclui um limite de tempo de 30 segundos para cada turno. A interface do usuário é projetada para ser limpa e intuitiva, tentando seguir as melhores práticas de UX/UI para garantir facilidade de uso. O jogo possui um placar e uma animação simples de vitória.
 
 ### Funcionalidades
 - **Dois Jogadores:** Suporta 2 jogadores em um formato baseado em turnos.
@@ -72,6 +80,7 @@ Um jogo simples de Batalha Naval multijogador baseado em turnos, desenvolvido co
 - **Sincronização do Estado do Jogo:** Garante que ambos os jogadores vejam as mesmas atualizações em tempo real.
 - **Animação de Vitória:** Celebra o vencedor com uma animação simples.
 - **Placar:** Rastreia o número de vitórias para cada jogador.
+
 
 ### Instalação
 
@@ -117,3 +126,11 @@ Um jogo simples de Batalha Naval multijogador baseado em turnos, desenvolvido co
 - Node.js
 - Express
 - Socket.IO
+
+### Problemas a serem solucionados
+
+1. Nenhum jogador ganha: A condição de vitória deveria acontecer quando um dos jogadores destruir todos os navios do oponente, porem a função check Winning Condition contem um bug.
+2. Sem feedback visual de acerto. Quando um jogador acerta uma parte do navio, deveria haver uma dica visual, mostrando se é um navio, ou água, ao acertar um navio deveria ser apresentado a coloração vermelha
+3. Sistema de escore não funciona: Ele só e atualizado no primeiro jogador.
+4. Contador regressivo: Não inicia a contagem, após alguns testes eu consegui fazer ele funcionar, porem ao contar o tempo havia um delay considerável e ocasionou em um bug pior nas jogadas
+5. Ainda não fiz o deploy em servidor e pretender criar um sistema de lobbies
