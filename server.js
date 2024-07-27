@@ -26,7 +26,7 @@ wss.on('connection', (ws) => {
     console.log('New client connected');
 
     if (clients.size >= 2) {
-      console.log('Game is full, rejecting connection');  // Add this line
+      console.log('Game is full, rejecting connection');
       ws.close();
       return;
     }
