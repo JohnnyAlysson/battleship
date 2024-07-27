@@ -266,21 +266,26 @@
       }
 
       function cellClick(player, row, col) {
-            if (!gameActive || player === playerNumber || currentPlayer !== playerNumber) return;
+          if (!gameActive || player === playerNumber || currentPlayer !== playerNumber) return;
 
-            if (boards[player][row][col] === 1) {
-                boards[player][row][col] = 2;
-                console.log("HIT");
-              } else if (boards[player][row][col] === 0) {
-                boards[player][row][col] = 3;
-                console.log("MISS");
-            }
+          if (boards[player][row][col] === 1) {
+              boards[player][row][col] = 2; // Hit
+              console.log("HIT");
+          } else if (boards[player][row][col] === 0) {
+              boards[player][row][col] = 3; // Miss
+              console.log("MISS");
+          }
 
-            socket.send(JSON.stringify({
-                type: 'move',
-                player: player,
-                board: boards[player]
-            }));
+          socket.send(JSON.stringify({
+              type: 'move',
+              player: player,
+              board: boards[player]
+          }));
+
+          if (!checkWinCondition()) {
+              switchPlayer();
+          }
+          updateBoards();
       }
 
       function updateBoards() {
@@ -298,6 +303,7 @@
                               cell.classList.add('ship');
                           }
                       }
+                      cell.classList.remove('hit', 'miss');
                       if (boards[player][i][j] === 2) {
                           cell.classList.add('hit');
                       } else if (boards[player][i][j] === 3) {
@@ -311,7 +317,9 @@
       function switchPlayer() {
           currentPlayer = currentPlayer === 1 ? 2 : 1;
           resetTimer();
+          updateGameStatus();
       }
+
 
       function checkWinCondition() {
             for (let player = 1; player <= 2; player++) {
@@ -326,6 +334,7 @@
             }
             return false;
         }
+
 
       function updateScoreboard() {
           document.getElementById('score1').textContent = scores[1];
@@ -357,6 +366,7 @@
               }
           }, 1000);
       }
+
 
       function updateTimerDisplay() {
           document.getElementById('timer').textContent = timeLeft;
