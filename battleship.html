@@ -182,6 +182,7 @@
 
   <script>
       const BOARD_SIZE = 10;
+      const SHIP_SIZES = [5, 4, 3, 3, 2];
       const CELL_VALUES = {
           EMPTY: 0,
           SHIP: 1,
@@ -196,8 +197,8 @@
       let timeLeft = 0;
 
       const boards = {
-          own: createBoard(),
-          opponent: createBoard()
+          own: createBoard(),        // Your board with ships - generated on server, received from server
+          opponent: createBoard()    // Opponent's board - tracks attacks on opponent's board
       };
 
       const socket = new WebSocket(`ws://${window.location.host}`);
@@ -244,16 +245,46 @@
           statusElement.className = 'game-status error-message';
       }
 
-      function handleGameStateUpdate(state) {
+        function handleGameStateUpdate(state) {
           currentPlayer = state.currentPlayer;
           gameActive = state.gameActive;
           
-          // Update boards from server
-          // boards[own] contains your ships (value 1) visible to you only
-          // boards[opponent] contains server's view of opponent board (hits=2, misses=3)
+          if (state.shipBoards && state.shipBoards[playerNumber]) {
+              // First time receiving game state - load your board from server
+              boards.own = JSON.parse(JSON.stringify(state.shipBoards[playerNumber]));
+          }
+          
           if (state.boards) {
-              boards.own = state.boards[playerNumber] || boards.own;
-              boards.opponent = state.boards[playerNumber === 1 ? 2 : 1] || boards.opponent;
+              const opponent = playerNumber === 1 ? 2 : 1;
+              
+              // Update YOUR board with opponent's attacks
+              if (state.attackHistory && state.attackHistory[opponent]) {
+                  state.attackHistory[opponent].forEach(attack => {
+                      const { row, col } = attack;
+                      // Only update cells that haven't been marked yet
+                      if (boards.own[row][col] === CELL_VALUES.SHIP) {
+                          boards.own[row][col] = CELL_VALUES.HIT;
+                      } else if (boards.own[row][col] === CELL_VALUES.EMPTY) {
+                          boards.own[row][col] = CELL_VALUES.MISS;
+                      }
+                  });
+              }
+              
+              // Update opponent's board with results of YOUR attacks
+              // Start fresh - only show attacks, not ships
+              boards.opponent = createBoard();
+              
+              // Overlay the attack results (hits and misses)
+              if (state.boards && state.boards[opponent]) {
+                  const attackBoard = state.boards[opponent];
+                  for (let i = 0; i < BOARD_SIZE; i++) {
+                      for (let j = 0; j < BOARD_SIZE; j++) {
+                          if (attackBoard[i][j] === CELL_VALUES.HIT || attackBoard[i][j] === CELL_VALUES.MISS) {
+                              boards.opponent[i][j] = attackBoard[i][j];
+                          }
+                      }
+                  }
+              }
           }
 
           updateBoards();
@@ -355,7 +386,7 @@
                   cell.classList.remove('ship', 'hit', 'miss', 'attacked');
 
                   if (value === CELL_VALUES.SHIP) {
-                      // Only show ships on own board
+                      // Only show ships on YOUR OWN board
                       if (isOwnBoard) {
                           cell.classList.add('ship');
                       }
@@ -399,7 +430,7 @@
 
           // Check for win/loss
           const allShipsHit = boards.opponent.every(row => 
-              row.every(cell => cell !== CELL_VALUES.SHIP)
+              row.every(cell => cell !== CELL_VALUES.SHIP && cell !== CELL_VALUES.EMPTY)
           );
           
           if (allShipsHit) {
@@ -409,7 +440,7 @@
           }
 
           const yourBoardAllHit = boards.own.every(row => 
-              row.every(cell => cell !== CELL_VALUES.SHIP)
+              row.every(cell => cell !== CELL_VALUES.SHIP && cell !== CELL_VALUES.EMPTY)
           );
           
           if (yourBoardAllHit) {
@@ -445,7 +476,6 @@
           location.reload();
       });
 
-      updateGameStatus();
   </script>
 </body>
 </html>

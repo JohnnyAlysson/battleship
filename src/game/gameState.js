@@ -14,6 +14,10 @@ class GameState {
             1: null,
             2: null
         };
+        this.shipBoards = {
+            1: null, // For displaying opponent's ships (after game starts)
+            2: null
+        };
         this.currentPlayer = 1;
         this.gameActive = false;
         this.playersReady = 0;
@@ -26,6 +30,10 @@ class GameState {
     initialize() {
         this.actualBoards[1] = generateShipPlacement();
         this.actualBoards[2] = generateShipPlacement();
+        
+        // Store ship positions for sending to clients
+        this.shipBoards[1] = JSON.parse(JSON.stringify(this.actualBoards[1]));
+        this.shipBoards[2] = JSON.parse(JSON.stringify(this.actualBoards[2]));
         
         const { getOpponentBoardView } = require('./rules');
         this.boards[1] = getOpponentBoardView(this.actualBoards[1], this.attackHistory[1]);
@@ -61,6 +69,7 @@ class GameState {
             currentPlayer: this.currentPlayer,
             gameActive: this.gameActive,
             boards: this.boards,
+            shipBoards: this.shipBoards, // Send ship positions to clients
             attackHistory: this.attackHistory
         };
     }
