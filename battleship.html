@@ -17,6 +17,13 @@
         .game-container {
             display: flex;
             gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .board-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         .board {
             display: grid;
@@ -35,6 +42,17 @@
             justify-content: center;
             align-items: center;
             cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .cell:hover:not(.attacked):not(.own-board) {
+            background-color: #e0e0e0;
+        }
+        .own-board .cell {
+            cursor: default;
+        }
+        .own-board .cell:hover {
+            background-color: #fff;
         }
         .ship {
             background-color: #999;
@@ -45,344 +63,389 @@
         .miss {
             background-color: #4ecdc4;
         }
+        .attacked {
+            cursor: not-allowed !important;
+        }
         .controls {
             display: flex;
             flex-direction: column;
             gap: 10px;
+            min-width: 200px;
         }
         button {
             padding: 10px;
             font-size: 16px;
             cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+            transition: background-color 0.3s;
         }
-        .scoreboard {
+        button:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .game-info {
             text-align: center;
             margin-bottom: 20px;
         }
         .timer {
-            font-size: 24px;
+            font-size: 28px;
+            font-weight: bold;
             text-align: center;
-            margin-bottom: 10px;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
+            min-width: 80px;
         }
-        .win-animation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+        .timer.warning {
+            color: #ff6b6b;
+        }
+        .game-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            min-height: 40px;
             display: flex;
-            justify-content: center;
             align-items: center;
-            font-size: 48px;
-            color: #fff;
-            animation: fadeIn 0.5s ease-in-out;
+            justify-content: center;
+            font-weight: bold;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .game-status.waiting {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        .game-status.your-turn {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+        }
+        .game-status.opponent-turn {
+            background-color: #fff9c4;
+            color: #f57f17;
+        }
+        .game-status.win {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+        }
+        .game-status.loss {
+            background-color: #ffcccc;
+            color: #c62828;
+        }
+        .error-message {
+            background-color: #ffcccc;
+            color: #c62828;
+        }
+        h2 {
+            margin: 10px 0;
+        }
+        .label {
+            font-size: 14px;
+            color: #666;
         }
     </style>
 </head>
 <body>
   <div class="game-container">
-      <div>
-          <h2>Player 1</h2>
-          <div id="board1" class="board"></div>
+      <div class="board-section own-board">
+          <h2>Your Board <span class="label">(Player <span id="playerLabel">-</span>)</span></h2>
+          <div id="boardOwn" class="board own-board"></div>
       </div>
-      <div>
-          <h2>Player 2</h2>
-          <div id="board2" class="board"></div>
-      </div>
+      
       <div class="controls">
-          <div class="scoreboard">
-              <h3>Scoreboard</h3>
-              <p>Player 1: <span id="score1">0</span></p>
-              <p>Player 2: <span id="score2">0</span></p>
+          <div class="game-info">
+              <h3>Battleship</h3>
           </div>
-          <div class="timer" id="timer">30</div>
+          
+          <div class="timer" id="timer">--</div>
+          
+          <div id="gameStatus" class="game-status waiting">Connecting...</div>
+          
+          <div style="border-top: 1px solid #ccc; padding-top: 10px;">
+              <p><strong>Your Turn:</strong> <span id="yourTurn">--</span></p>
+              <p><strong>Current Player:</strong> <span id="currentPlayerDisplay">--</span></p>
+          </div>
+          
           <button id="startGame">Start Game</button>
           <button id="resetGame">Reset Game</button>
-          <div id="gameStatus"></div>
+      </div>
+      
+      <div class="board-section">
+          <h2>Opponent's Board</h2>
+          <div id="boardOpponent" class="board"></div>
       </div>
   </div>
 
   <script>
       const BOARD_SIZE = 10;
-      const SHIP_SIZES = [5, 4, 3, 3, 2];
+      const CELL_VALUES = {
+          EMPTY: 0,
+          SHIP: 1,
+          HIT: 2,
+          MISS: 3
+      };
+
       let playerNumber;
       let currentPlayer = 1;
       let gameActive = false;
-      let timer;
-      let timeLeft = 30;
+      let timerInterval = null;
+      let timeLeft = 0;
 
       const boards = {
-          1: createBoard(),
-          2: createBoard()
+          own: createBoard(),
+          opponent: createBoard()
       };
-
-      const scores = {
-          1: 0,
-          2: 0
-      };
-      
 
       const socket = new WebSocket(`ws://${window.location.host}`);
-      // const socket = new WebSocket(`ws://your-server-url.com`); if using online deployed
 
       socket.onopen = () => {
-            console.log('WebSocket connection established');
-        };
+          console.log('WebSocket connection established');
+      };
 
       socket.onmessage = (event) => {
-          console.log('Received message:', event.data);
           const data = JSON.parse(event.data);
+          console.log('Received from server:', data);
+          
           if (data.type === 'player') {
               playerNumber = data.number;
+              document.getElementById('playerLabel').textContent = playerNumber;
               console.log(`You are Player ${playerNumber}`);
-              initializeGame();
+              updateGameStatus();
+              
           } else if (data.type === 'gameState') {
-              updateGameState(data);
+              handleGameStateUpdate(data);
+              
+          } else if (data.type === 'error') {
+              showError(data.message);
           }
       };
 
       socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            showError('WebSocket error occurred.');
+          console.error('WebSocket error:', error);
+          showError('WebSocket error occurred.');
       };
 
-      socket.onclose = (event) => {
-          console.log('WebSocket connection closed:', event);
+      socket.onclose = () => {
           showError('Connection lost. Please refresh the page.');
+          clearInterval(timerInterval);
       };
+
+      function createBoard() {
+          return Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(CELL_VALUES.EMPTY));
+      }
 
       function showError(message) {
           const statusElement = document.getElementById('gameStatus');
           statusElement.textContent = message;
+          statusElement.className = 'game-status error-message';
       }
 
-      function updateGameState(state) {
+      function handleGameStateUpdate(state) {
           currentPlayer = state.currentPlayer;
           gameActive = state.gameActive;
-          if (state.boards[1]) boards[1] = state.boards[1];
-          if (state.boards[2]) boards[2] = state.boards[2];
+          
+          // Update boards from server
+          // boards[own] contains your ships (value 1) visible to you only
+          // boards[opponent] contains server's view of opponent board (hits=2, misses=3)
+          if (state.boards) {
+              boards.own = state.boards[playerNumber] || boards.own;
+              boards.opponent = state.boards[playerNumber === 1 ? 2 : 1] || boards.opponent;
+          }
+
           updateBoards();
-          updateTimerDisplay();
-          updateControlsVisibility();
           updateGameStatus();
+          updateControlsVisibility();
+
+          if (gameActive && !timerInterval) {
+              startTimer();
+          } else if (!gameActive) {
+              clearInterval(timerInterval);
+              timerInterval = null;
+          }
       }
-        
+
+      function startTimer() {
+          timeLeft = 30;
+          updateTimerDisplay();
+          
+          timerInterval = setInterval(() => {
+              timeLeft--;
+              updateTimerDisplay();
+          }, 1000);
+      }
+
+      function updateTimerDisplay() {
+          const timerElement = document.getElementById('timer');
+          timerElement.textContent = timeLeft;
+          
+          if (timeLeft <= 10) {
+              timerElement.classList.add('warning');
+          } else {
+              timerElement.classList.remove('warning');
+          }
+      }
+
+      function createCell(isOwnBoard, row, col) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+          
+          if (!isOwnBoard) {
+              cell.addEventListener('click', () => cellClick(row, col));
+          }
+          
+          return cell;
+      }
+
+      function cellClick(row, col) {
+          // Validate before sending
+          if (!gameActive || currentPlayer !== playerNumber) {
+              return;
+          }
+
+          // Can't click already attacked cells
+          if (boards.opponent[row][col] === CELL_VALUES.HIT || 
+              boards.opponent[row][col] === CELL_VALUES.MISS) {
+              showError('Cell already attacked!');
+              return;
+          }
+
+          console.log(`Attacking (${row}, ${col})`);
+          
+          // Send move to server for validation
+          socket.send(JSON.stringify({
+              type: 'move',
+              row: row,
+              col: col
+          }));
+      }
+
+      function updateBoards() {
+          updateBoard('boardOwn', boards.own, true);
+          updateBoard('boardOpponent', boards.opponent, false);
+      }
+
+      function updateBoard(elementId, boardData, isOwnBoard) {
+          const boardElement = document.getElementById(elementId);
+          
+          if (!boardElement.children.length) {
+              // First time - create all cells
+              for (let i = 0; i < BOARD_SIZE; i++) {
+                  for (let j = 0; j < BOARD_SIZE; j++) {
+                      const cell = createCell(isOwnBoard, i, j);
+                      boardElement.appendChild(cell);
+                  }
+              }
+          }
+
+          // Update cell visuals
+          const cells = boardElement.querySelectorAll('.cell');
+
+          for (let i = 0; i < BOARD_SIZE; i++) {
+              for (let j = 0; j < BOARD_SIZE; j++) {
+                  const index = i * BOARD_SIZE + j;
+                  const cell = cells[index];
+                  const value = boardData[i][j];
+
+                  cell.classList.remove('ship', 'hit', 'miss', 'attacked');
+
+                  if (value === CELL_VALUES.SHIP) {
+                      // Only show ships on own board
+                      if (isOwnBoard) {
+                          cell.classList.add('ship');
+                      }
+                  } else if (value === CELL_VALUES.HIT) {
+                      cell.classList.add('hit', 'attacked');
+                  } else if (value === CELL_VALUES.MISS) {
+                      cell.classList.add('miss', 'attacked');
+                  }
+              }
+          }
+      }
+
       function updateControlsVisibility() {
           const startButton = document.getElementById('startGame');
           const resetButton = document.getElementById('resetGame');
+          
           startButton.disabled = gameActive;
           resetButton.disabled = !gameActive;
       }
 
       function updateGameStatus() {
           const statusElement = document.getElementById('gameStatus');
+          const yourTurnElement = document.getElementById('yourTurn');
+          const currentPlayerDisplay = document.getElementById('currentPlayerDisplay');
+
+          if (!playerNumber) {
+              statusElement.textContent = 'Connecting...';
+              statusElement.className = 'game-status waiting';
+              yourTurnElement.textContent = '--';
+              currentPlayerDisplay.textContent = '--';
+              return;
+          }
+
           if (!gameActive) {
-              statusElement.textContent = 'Waiting for both players to start...';
-          } else if (currentPlayer === playerNumber) {
-              statusElement.textContent = 'Your turn!';
+              yourTurnElement.textContent = 'No';
+              currentPlayerDisplay.textContent = '--';
+              statusElement.textContent = 'Waiting to start...';
+              statusElement.className = 'game-status waiting';
+              return;
+          }
+
+          // Check for win/loss
+          const allShipsHit = boards.opponent.every(row => 
+              row.every(cell => cell !== CELL_VALUES.SHIP)
+          );
+          
+          if (allShipsHit) {
+              statusElement.textContent = '🎉 You Win!';
+              statusElement.className = 'game-status win';
+              return;
+          }
+
+          const yourBoardAllHit = boards.own.every(row => 
+              row.every(cell => cell !== CELL_VALUES.SHIP)
+          );
+          
+          if (yourBoardAllHit) {
+              statusElement.textContent = '❌ You Lose!';
+              statusElement.className = 'game-status loss';
+              return;
+          }
+
+          // Normal game status
+          currentPlayerDisplay.textContent = currentPlayer;
+          
+          if (currentPlayer === playerNumber) {
+              statusElement.textContent = '✓ Your turn!';
+              statusElement.className = 'game-status your-turn';
+              yourTurnElement.textContent = 'Yes';
           } else {
-              statusElement.textContent = 'Opponent\'s turn...';
+              statusElement.textContent = '⏳ Opponent\'s turn...';
+              statusElement.className = 'game-status opponent-turn';
+              yourTurnElement.textContent = 'No';
           }
-      }
-
-      function createBoard() {
-          return Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
-      }
-
-      function initializeGame() {
-          const board1 = document.getElementById('board1');
-          const board2 = document.getElementById('board2');
-
-          board1.innerHTML = '';
-          board2.innerHTML = '';
-
-          for (let i = 0; i < BOARD_SIZE; i++) {
-              for (let j = 0; j < BOARD_SIZE; j++) {
-                  const cell1 = createCell(1, i, j);
-                  const cell2 = createCell(2, i, j);
-                  board1.appendChild(cell1);
-                  board2.appendChild(cell2);
-              }
-          }
-
-          placeShipsRandomly(playerNumber);
-          updateBoards();
-          updateControlsVisibility();
-      }
-
-      function createCell(player, row, col) {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.dataset.row = row;
-          cell.dataset.col = col;
-          cell.addEventListener('click', () => cellClick(player, row, col));
-          return cell;
-      }
-
-      function placeShipsRandomly(player) {
-          SHIP_SIZES.forEach(size => {
-              let placed = false;
-              while (!placed) {
-                  const row = Math.floor(Math.random() * BOARD_SIZE);
-                  const col = Math.floor(Math.random() * BOARD_SIZE);
-                  const horizontal = Math.random() < 0.5;
-
-                  if (canPlaceShip(player, row, col, size, horizontal)) {
-                      placeShip(player, row, col, size, horizontal);
-                      placed = true;
-                  }
-              }
-          });
-      }
-
-      function canPlaceShip(player, row, col, size, horizontal) {
-          for (let i = 0; i < size; i++) {
-              if (horizontal) {
-                  if (col + i >= BOARD_SIZE || boards[player][row][col + i] !== 0) {
-                      return false;
-                  }
-              } else {
-                  if (row + i >= BOARD_SIZE || boards[player][row + i][col] !== 0) {
-                      return false;
-                  }
-              }
-          }
-          return true;
-      }
-
-      function placeShip(player, row, col, size, horizontal) {
-          for (let i = 0; i < size; i++) {
-              if (horizontal) {
-                  boards[player][row][col + i] = 1;
-              } else {
-                  boards[player][row + i][col] = 1;
-              }
-          }
-      }
-
-      function cellClick(player, row, col) {
-          if (!gameActive || player === playerNumber || currentPlayer !== playerNumber) return;
-
-          if (boards[player][row][col] === 1) {
-              boards[player][row][col] = 2; // Hit
-              console.log("HIT");
-          } else if (boards[player][row][col] === 0) {
-              boards[player][row][col] = 3; // Miss
-              console.log("MISS");
-          }
-
-          socket.send(JSON.stringify({
-              type: 'move',
-              player: player,
-              board: boards[player]
-          }));
-
-          if (!checkWinCondition()) {
-              switchPlayer();
-          }
-          updateBoards();
-      }
-
-      function updateBoards() {
-          for (let player = 1; player <= 2; player++) {
-              const board = document.getElementById(`board${player}`);
-              const cells = board.getElementsByClassName('cell');
-
-              for (let i = 0; i < BOARD_SIZE; i++) {
-                  for (let j = 0; j < BOARD_SIZE; j++) {
-                      const index = i * BOARD_SIZE + j;
-                      const cell = cells[index];
-
-                      if (player === playerNumber) {
-                          if (boards[player][i][j] === 1) {
-                              cell.classList.add('ship');
-                          }
-                      }
-                      cell.classList.remove('hit', 'miss');
-                      if (boards[player][i][j] === 2) {
-                          cell.classList.add('hit');
-                      } else if (boards[player][i][j] === 3) {
-                          cell.classList.add('miss');
-                      }
-                  }
-              }
-          }
-      }
-
-      function switchPlayer() {
-          currentPlayer = currentPlayer === 1 ? 2 : 1;
-          resetTimer();
-          updateGameStatus();
-      }
-
-
-      function checkWinCondition() {
-            for (let player = 1; player <= 2; player++) {
-                if (boards[player].every(row => row.every(cell => cell !== 1))) {
-                    gameActive = false;
-                    const winner = player === 1 ? 2 : 1;
-                    scores[winner]++;
-                    updateScoreboard();
-                    showWinAnimation(winner);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-
-      function updateScoreboard() {
-          document.getElementById('score1').textContent = scores[1];
-          document.getElementById('score2').textContent = scores[2];
-      }
-
-      function showWinAnimation(winner) {
-          const winElement = document.createElement('div');
-          winElement.className = 'win-animation';
-          winElement.textContent = `Player ${winner} wins!`;
-          document.body.appendChild(winElement);
-
-          setTimeout(() => {
-              document.body.removeChild(winElement);
-          }, 3000);
-      }
-
-      function resetTimer() {
-          clearInterval(timer);
-          timeLeft = 30;
-          updateTimerDisplay();
-
-          timer = setInterval(() => {
-              timeLeft--;
-              updateTimerDisplay();
-
-              if (timeLeft === 0) {
-                  switchPlayer();
-              }
-          }, 1000);
-      }
-
-
-      function updateTimerDisplay() {
-          document.getElementById('timer').textContent = timeLeft;
       }
 
       document.getElementById('startGame').addEventListener('click', () => {
-            socket.send(JSON.stringify({ type: 'start' }));
-            document.getElementById('startGame').disabled = true;
+          console.log('Start game clicked');
+          socket.send(JSON.stringify({ type: 'start' }));
+          document.getElementById('startGame').disabled = true;
       });
 
       document.getElementById('resetGame').addEventListener('click', () => {
-            socket.send(JSON.stringify({ type: 'reset' }));
-            initializeGame();
+          console.log('Reset game clicked');
+          socket.send(JSON.stringify({ type: 'reset' }));
+          clearInterval(timerInterval);
+          location.reload();
       });
 
-      initializeGame();
+      updateGameStatus();
   </script>
 </body>
 </html>

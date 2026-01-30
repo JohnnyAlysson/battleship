@@ -18,7 +18,7 @@ A simple, turn-based multiplayer Battleship game built using HTML, CSS, and Java
 1. **Install Node.js** if not already installed.
 2. **Clone the repository:**
     ```sh
-    git clone https://github.com/yourusername/battleship-game.git
+    git clone https://github.com/JohnnyAlysson/battleship.git
     ```
 3. **Navigate to the project directory:**
     ```sh
@@ -95,8 +95,12 @@ Um jogo simples de Batalha Naval multijogador baseado em turnos, desenvolvido co
     ```
 4. **Instale as dependências:**
     ```sh
-    npm install
+    npm install 
     ```
+    4.5 Update if necessary:
+     ```sh
+    npm install upgrade
+
 5. **Inicie o servidor:**
     ```sh
     npm start
@@ -106,16 +110,21 @@ Um jogo simples de Batalha Naval multijogador baseado em turnos, desenvolvido co
 ### Estrutura do Diretório
 
 ```
-/battleship-game
-│
-├── node_modules
-├── .gitignore
-├── .gitpod.yml
-├── battleship.html
-├── package-lock.json
+battleship/
+├── src/
+│   ├── config/
+│   │   └── constants.js       # Game constants (board size, ship sizes, etc)
+│   ├── game/
+│   │   ├── board.js          # Board generation and validation logic
+│   │   ├── gameState.js      # Game state management class
+│   │   └── rules.js          # Game rules (win conditions, attack validation)
+│   ├── websocket/
+│   │   ├── broadcaster.js    # Functions to send messages to clients
+│   │   └── handlers.js       # WebSocket message handlers
+│   └── server.js             # Main server entry point
+├── battleship.html           # Client code
 ├── package.json
-├── README.md
-└── server.js
+└── README.MD
 
 ```
 
@@ -130,7 +139,6 @@ Um jogo simples de Batalha Naval multijogador baseado em turnos, desenvolvido co
 ### Problemas a serem solucionados
 
 1. Nenhum jogador ganha: A condição de vitória deveria acontecer quando um dos jogadores destruir todos os navios do oponente, porem a função check Winning Condition contem um bug.
-2. Sem feedback visual de acerto. Quando um jogador acerta uma parte do navio, deveria haver uma dica visual, mostrando se é um navio, ou água, ao acertar um navio deveria ser apresentado a coloração vermelha
 3. Sistema de escore não funciona: Ele só e atualizado no primeiro jogador.
 4. Contador regressivo: Não inicia a contagem, após alguns testes eu consegui fazer ele funcionar, porem ao contar o tempo havia um delay considerável e ocasionou em um bug pior nas jogadas
 5. Ainda não fiz o deploy em servidor e pretender criar um sistema de lobbies
