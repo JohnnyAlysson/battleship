@@ -204,23 +204,29 @@
       const socket = new WebSocket(`ws://${window.location.host}`);
 
       socket.onopen = () => {
-          console.log('WebSocket connection established');
+          console.log('%c[WEBSOCKET] Connection established', 'color: cyan; font-weight: bold;');
       };
 
       socket.onmessage = (event) => {
           const data = JSON.parse(event.data);
-          console.log('Received from server:', data);
+          console.log('%c[WEBSOCKET] Message received', 'color: yellow; font-weight: bold;', data);
           
           if (data.type === 'player') {
               playerNumber = data.number;
               document.getElementById('playerLabel').textContent = playerNumber;
-              console.log(`You are Player ${playerNumber}`);
+              console.log(`%c[CLIENT] Assigned as Player ${playerNumber}`, 'color: cyan; font-weight: bold;');
               updateGameStatus();
               
           } else if (data.type === 'gameState') {
+              console.log(`%c[CLIENT] Game state updated`, 'color: magenta; font-weight: bold;', {
+                  currentPlayer: data.currentPlayer,
+                  gameActive: data.gameActive,
+                  playerShips: data.shipBoards[playerNumber] ? 'loaded' : 'not loaded'
+              });
               handleGameStateUpdate(data);
               
           } else if (data.type === 'error') {
+              console.log(`%c[CLIENT] Error from server: ${data.message}`, 'color: red; font-weight: bold;');
               showError(data.message);
           }
       };
@@ -246,12 +252,17 @@
       }
 
         function handleGameStateUpdate(state) {
+         console.log('%c[CLIENT] Handling game state update', 'color: magenta; font-weight: bold;');
+          
           currentPlayer = state.currentPlayer;
           gameActive = state.gameActive;
           
           if (state.shipBoards && state.shipBoards[playerNumber]) {
-              // First time receiving game state - load your board from server
               boards.own = JSON.parse(JSON.stringify(state.shipBoards[playerNumber]));
+              console.log('%c[CLIENT] Your board loaded from server', 'color: green; font-weight: bold;', {
+                  playerNumber: playerNumber,
+                  shipCount: boards.own.flat().filter(cell => cell === 1).length
+              });
           }
           
           if (state.boards) {
@@ -334,21 +345,22 @@
       }
 
       function cellClick(row, col) {
-          // Validate before sending
+          console.log('%c[CLIENT] Cell clicked', 'color: blue; font-weight: bold;', { row, col, player: playerNumber, currentPlayer, gameActive });
+          
           if (!gameActive || currentPlayer !== playerNumber) {
+              console.log('%c[CLIENT] Click ignored - not your turn or game not active', 'color: red;');
               return;
           }
 
-          // Can't click already attacked cells
           if (boards.opponent[row][col] === CELL_VALUES.HIT || 
               boards.opponent[row][col] === CELL_VALUES.MISS) {
+              console.log('%c[CLIENT] Cell already attacked', 'color: red;');
               showError('Cell already attacked!');
               return;
           }
 
-          console.log(`Attacking (${row}, ${col})`);
+          console.log('%c[CLIENT] Sending attack to server', 'color: green; font-weight: bold;', { row, col });
           
-          // Send move to server for validation
           socket.send(JSON.stringify({
               type: 'move',
               row: row,
@@ -464,13 +476,13 @@
       }
 
       document.getElementById('startGame').addEventListener('click', () => {
-          console.log('Start game clicked');
+          console.log('%c[CLIENT] Start Game button clicked', 'color: green; font-weight: bold;');
           socket.send(JSON.stringify({ type: 'start' }));
           document.getElementById('startGame').disabled = true;
       });
 
       document.getElementById('resetGame').addEventListener('click', () => {
-          console.log('Reset game clicked');
+          console.log('%c[CLIENT] Reset Game button clicked', 'color: orange; font-weight: bold;');
           socket.send(JSON.stringify({ type: 'reset' }));
           clearInterval(timerInterval);
           location.reload();

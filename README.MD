@@ -12,6 +12,7 @@ A simple, turn-based multiplayer Battleship game built using HTML, CSS, and Java
 - **Game State Syncing:** Ensures both players see the same updates in real-time.
 - **Winning Animation:** Celebrates the winner with a simple animation.
 - **Scoreboard:** Tracks the number of wins for each player.
+- **Logs:** Logged functions for study purposes so you can see what is happening on the server/backend
 
 ### Installation
 
@@ -37,16 +38,22 @@ A simple, turn-based multiplayer Battleship game built using HTML, CSS, and Java
 ### Directory Structure
 
 ```
-/battleship-game
-│
-├── node_modules
-├── .gitignore
-├── .gitpod.yml
-├── battleship.html
-├── package-lock.json
+battleship/
+├── src/
+│   ├── config/
+│   │   ├──constants.js       # Game constants (board size, ship sizes, etc)
+|   |   └──logger.js          # Log information such as colors and functions 
+│   ├── game/
+│   │   ├── board.js          # Board generation and validation logic
+│   │   ├── gameState.js      # Game state management class
+│   │   └── rules.js          # Game rules (win conditions, attack validation)
+│   ├── websocket/
+│   │   ├── broadcaster.js    # Functions to send messages to clients
+│   │   └── handlers.js       # WebSocket message handlers
+│   └── server.js             # Main server entry point
+├── battleship.html           # Client code
 ├── package.json
-├── README.md
-└── server.js
+└── README.MD
 
 ```
 
@@ -61,7 +68,6 @@ A simple, turn-based multiplayer Battleship game built using HTML, CSS, and Java
 ### Issues to be solved
 
 1. No player is winning: The winning condition should be achieved when one of the players destroys all the ship of the other player, but the checking winning condition function has a bug.
-2. No visual clue of a hit: When the player hits the piece of a ship, there should be a visual clue that was either a ship or water, Ship hit should be in red.
 3. The score system is not working properly, being updated correctly only for first player.
 4. countdown is not working.
 5. Still need to deploy on a server and maybe create a lobby system
@@ -113,16 +119,17 @@ Um jogo simples de Batalha Naval multijogador baseado em turnos, desenvolvido co
 battleship/
 ├── src/
 │   ├── config/
-│   │   └── constants.js       # Game constants (board size, ship sizes, etc)
+│   │   ├── constants.js      # Constantes do jogo (tamanho do tabuleiro, tamanhos dos navios, etc)
+│   │   └── logger.js         # Informações de log como cores e funções
 │   ├── game/
-│   │   ├── board.js          # Board generation and validation logic
-│   │   ├── gameState.js      # Game state management class
-│   │   └── rules.js          # Game rules (win conditions, attack validation)
+│   │   ├── board.js          # Lógica de geração e validação do tabuleiro
+│   │   ├── gameState.js      # Classe de gerenciamento do estado do jogo
+│   │   └── rules.js          # Regras do jogo (condições de vitória, validação de ataque)
 │   ├── websocket/
-│   │   ├── broadcaster.js    # Functions to send messages to clients
-│   │   └── handlers.js       # WebSocket message handlers
-│   └── server.js             # Main server entry point
-├── battleship.html           # Client code
+│   │   ├── broadcaster.js    # Funções para enviar mensagens aos clientes
+│   │   └── handlers.js       # Manipuladores de mensagens do WebSocket
+│   └── server.js             # Ponto de entrada principal do servidor
+├── battleship.html           # Código do cliente
 ├── package.json
 └── README.MD
 

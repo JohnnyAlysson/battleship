@@ -1,11 +1,14 @@
 const { generateShipPlacement, createEmptyBoard } = require('./board');
+const { log } = require('../config/logger');
 
 class GameState {
     constructor() {
+        log('STATE', 'GameState instance created');
         this.reset();
     }
 
     reset() {
+        log('STATE', 'GameState reset to initial values');
         this.boards = {
             1: null,
             2: null
@@ -15,7 +18,7 @@ class GameState {
             2: null
         };
         this.shipBoards = {
-            1: null, // For displaying opponent's ships (after game starts)
+            1: null,
             2: null
         };
         this.currentPlayer = 1;
@@ -28,23 +31,37 @@ class GameState {
     }
 
     initialize() {
+        log('STATE', 'Initializing game - Generating ship placements');
+        
         this.actualBoards[1] = generateShipPlacement();
+        log('STATE', 'Ships generated for Player 1', { totalShips: 5 });
+        
         this.actualBoards[2] = generateShipPlacement();
+        log('STATE', 'Ships generated for Player 2', { totalShips: 5 });
         
         // Store ship positions for sending to clients
         this.shipBoards[1] = JSON.parse(JSON.stringify(this.actualBoards[1]));
         this.shipBoards[2] = JSON.parse(JSON.stringify(this.actualBoards[2]));
+        log('STATE', 'Ship boards cloned for client display');
         
         const { getOpponentBoardView } = require('./rules');
         this.boards[1] = getOpponentBoardView(this.actualBoards[1], this.attackHistory[1]);
         this.boards[2] = getOpponentBoardView(this.actualBoards[2], this.attackHistory[2]);
+        log('STATE', 'Opponent board views created');
         
         this.currentPlayer = 1;
         this.gameActive = true;
         this.playersReady = 0;
+        
+        log('STATE', 'Game initialization complete', { 
+            currentPlayer: this.currentPlayer, 
+            gameActive: this.gameActive 
+        });
     }
 
     recordAttack(playerNumber, row, col) {
+        log('STATE', `Recording attack for Player ${playerNumber}`, { row, col });
+        
         this.attackHistory[playerNumber].push({ row, col });
         
         const opponent = playerNumber === 1 ? 2 : 1;
@@ -53,13 +70,23 @@ class GameState {
             this.actualBoards[opponent],
             this.attackHistory[playerNumber]
         );
+        
+        const hit = this.actualBoards[opponent][row][col] === 1;
+        log('STATE', `Attack result: ${hit ? 'HIT' : 'MISS'}`, { 
+            attacker: playerNumber, 
+            target: opponent,
+            totalAttacks: this.attackHistory[playerNumber].length 
+        });
     }
 
     switchTurn() {
+        const oldPlayer = this.currentPlayer;
         this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+        log('STATE', `Turn switched`, { from: oldPlayer, to: this.currentPlayer });
     }
 
     endGame() {
+        log('STATE', 'Game ended');
         this.gameActive = false;
     }
 
@@ -69,7 +96,7 @@ class GameState {
             currentPlayer: this.currentPlayer,
             gameActive: this.gameActive,
             boards: this.boards,
-            shipBoards: this.shipBoards, // Send ship positions to clients
+            shipBoards: this.shipBoards,
             attackHistory: this.attackHistory
         };
     }
