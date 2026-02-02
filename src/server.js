@@ -23,6 +23,7 @@ app.get('/', (req, res) => {
 
 const clients = new Map(); // Maps WebSocket -> playerNumber
 const gameState = new GameState();
+gameState.clients = clients;
 
 wss.on('connection', (ws) => {
     log('CONNECTION', `New client connected`, { totalClients: clients.size + 1 });

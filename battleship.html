@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,17 +15,20 @@
             margin: 0;
             background-color: #f0f0f0;
         }
+
         .game-container {
             display: flex;
             gap: 20px;
             flex-wrap: wrap;
             justify-content: center;
         }
+
         .board-section {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
+
         .board {
             display: grid;
             grid-template-columns: repeat(10, 30px);
@@ -33,6 +37,7 @@
             padding: 10px;
             border-radius: 5px;
         }
+
         .cell {
             width: 30px;
             height: 30px;
@@ -45,33 +50,42 @@
             font-size: 12px;
             font-weight: bold;
         }
+
         .cell:hover:not(.attacked):not(.own-board) {
             background-color: #e0e0e0;
         }
+
         .own-board .cell {
             cursor: default;
         }
+
         .own-board .cell:hover {
             background-color: #fff;
         }
+
         .ship {
             background-color: #999;
         }
+
         .hit {
             background-color: #ff6b6b;
         }
+
         .miss {
             background-color: #4ecdc4;
         }
+
         .attacked {
             cursor: not-allowed !important;
         }
+
         .controls {
             display: flex;
             flex-direction: column;
             gap: 10px;
             min-width: 200px;
         }
+
         button {
             padding: 10px;
             font-size: 16px;
@@ -82,17 +96,21 @@
             color: white;
             transition: background-color 0.3s;
         }
+
         button:hover:not(:disabled) {
             background-color: #45a049;
         }
+
         button:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
         }
+
         .game-info {
             text-align: center;
             margin-bottom: 20px;
         }
+
         .timer {
             font-size: 28px;
             font-weight: bold;
@@ -103,9 +121,11 @@
             border-radius: 4px;
             min-width: 80px;
         }
+
         .timer.warning {
             color: #ff6b6b;
         }
+
         .game-status {
             padding: 10px;
             margin: 10px 0;
@@ -116,378 +136,398 @@
             justify-content: center;
             font-weight: bold;
         }
+
         .game-status.waiting {
             background-color: #e3f2fd;
             color: #1976d2;
         }
+
         .game-status.your-turn {
             background-color: #c8e6c9;
             color: #2e7d32;
         }
+
         .game-status.opponent-turn {
             background-color: #fff9c4;
             color: #f57f17;
         }
+
         .game-status.win {
             background-color: #c8e6c9;
             color: #2e7d32;
         }
+
         .game-status.loss {
             background-color: #ffcccc;
             color: #c62828;
         }
+
         .error-message {
             background-color: #ffcccc;
             color: #c62828;
         }
+
         h2 {
             margin: 10px 0;
         }
+
         .label {
             font-size: 14px;
             color: #666;
         }
     </style>
 </head>
+
 <body>
-  <div class="game-container">
-      <div class="board-section own-board">
-          <h2>Your Board <span class="label">(Player <span id="playerLabel">-</span>)</span></h2>
-          <div id="boardOwn" class="board own-board"></div>
-      </div>
-      
-      <div class="controls">
-          <div class="game-info">
-              <h3>Battleship</h3>
-          </div>
-          
-          <div class="timer" id="timer">--</div>
-          
-          <div id="gameStatus" class="game-status waiting">Connecting...</div>
-          
-          <div style="border-top: 1px solid #ccc; padding-top: 10px;">
-              <p><strong>Your Turn:</strong> <span id="yourTurn">--</span></p>
-              <p><strong>Current Player:</strong> <span id="currentPlayerDisplay">--</span></p>
-          </div>
-          
-          <button id="startGame">Start Game</button>
-          <button id="resetGame">Reset Game</button>
-      </div>
-      
-      <div class="board-section">
-          <h2>Opponent's Board</h2>
-          <div id="boardOpponent" class="board"></div>
-      </div>
-  </div>
+    <div class="game-container">
+        <div class="board-section own-board">
+            <h2>Your Board <span class="label">(Player <span id="playerLabel">-</span>)</span></h2>
+            <div id="boardOwn" class="board own-board"></div>
+        </div>
 
-  <script>
-      const BOARD_SIZE = 10;
-      const SHIP_SIZES = [5, 4, 3, 3, 2];
-      const CELL_VALUES = {
-          EMPTY: 0,
-          SHIP: 1,
-          HIT: 2,
-          MISS: 3
-      };
+        <div class="controls">
+            <div class="game-info">
+                <h3>Battleship</h3>
+            </div>
 
-      let playerNumber;
-      let currentPlayer = 1;
-      let gameActive = false;
-      let timerInterval = null;
-      let timeLeft = 0;
+            <div class="timer" id="timer">--</div>
 
-      const boards = {
-          own: createBoard(),        // Your board with ships - generated on server, received from server
-          opponent: createBoard()    // Opponent's board - tracks attacks on opponent's board
-      };
+            <div id="gameStatus" class="game-status waiting">Connecting...</div>
 
-      const socket = new WebSocket(`ws://${window.location.host}`);
+            <div style="border-top: 1px solid #ccc; padding-top: 10px;">
+                <p><strong>Your Turn:</strong> <span id="yourTurn">--</span></p>
+                <p><strong>Current Player:</strong> <span id="currentPlayerDisplay">--</span></p>
+            </div>
 
-      socket.onopen = () => {
-          console.log('%c[WEBSOCKET] Connection established', 'color: cyan; font-weight: bold;');
-      };
+            <button id="startGame">Start Game</button>
+            <button id="resetGame">Reset Game</button>
+        </div>
 
-      socket.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          console.log('%c[WEBSOCKET] Message received', 'color: yellow; font-weight: bold;', data);
-          
-          if (data.type === 'player') {
-              playerNumber = data.number;
-              document.getElementById('playerLabel').textContent = playerNumber;
-              console.log(`%c[CLIENT] Assigned as Player ${playerNumber}`, 'color: cyan; font-weight: bold;');
-              updateGameStatus();
-              
-          } else if (data.type === 'gameState') {
-              console.log(`%c[CLIENT] Game state updated`, 'color: magenta; font-weight: bold;', {
-                  currentPlayer: data.currentPlayer,
-                  gameActive: data.gameActive,
-                  playerShips: data.shipBoards[playerNumber] ? 'loaded' : 'not loaded'
-              });
-              handleGameStateUpdate(data);
-              
-          } else if (data.type === 'error') {
-              console.log(`%c[CLIENT] Error from server: ${data.message}`, 'color: red; font-weight: bold;');
-              showError(data.message);
-          }
-      };
+        <div class="board-section">
+            <h2>Opponent's Board</h2>
+            <div id="boardOpponent" class="board"></div>
+        </div>
+    </div>
 
-      socket.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          showError('WebSocket error occurred.');
-      };
+    <script>
+        let playerNumber;
+        let currentPlayer = 1;
+        let gameActive = false;
+        let timerInterval = null;
+        let timeLeft = 0;
 
-      socket.onclose = () => {
-          showError('Connection lost. Please refresh the page.');
-          clearInterval(timerInterval);
-      };
+        let BOARD_SIZE;
+        let SHIP_SIZES;
+        let CELL_VALUES;
 
-      function createBoard() {
-          return Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(CELL_VALUES.EMPTY));
-      }
+        const boards = {
+            own: null,
+            opponent: null
+        };
 
-      function showError(message) {
-          const statusElement = document.getElementById('gameStatus');
-          statusElement.textContent = message;
-          statusElement.className = 'game-status error-message';
-      }
+        const socket = new WebSocket(`ws://${window.location.host}`);
+
+        socket.onopen = () => {
+            console.log('%c[WEBSOCKET] Connection established', 'color: cyan; font-weight: bold;');
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('%c[WEBSOCKET] Message received', 'color: yellow; font-weight: bold;', data);
+
+            if (data.type === 'player') {
+                playerNumber = data.number;
+                BOARD_SIZE = data.constants.BOARD_SIZE;
+                SHIP_SIZES = data.constants.SHIP_SIZES;
+                CELL_VALUES = data.constants.CELL_VALUES;
+
+                boards.own = createBoard();
+                boards.opponent = createBoard();
+
+                document.getElementById('playerLabel').textContent = playerNumber;
+                console.log(`%c[CLIENT] Assigned as Player ${playerNumber}`, 'color: cyan; font-weight: bold;');
+                updateGameStatus();
+
+            } else if (data.type === 'gameState') {
+                console.log(`%c[CLIENT] Game state updated`, 'color: magenta; font-weight: bold;', {
+                    currentPlayer: data.currentPlayer,
+                    gameActive: data.gameActive,
+                    timeLeft: data.timeLeft
+                });
+                timeLeft = data.timeLeft;  // Sync with server when state updates
+                handleGameStateUpdate(data);
+
+            } else if (data.type === 'error') {
+                console.log(`%c[CLIENT] Error from server: ${data.message}`, 'color: red; font-weight: bold;');
+                showError(data.message);
+            }
+        };
+
+        function startTimer() {
+            updateTimerDisplay();
+
+            timerInterval = setInterval(() => {
+                // Timer is now controlled by server, just update display
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            showError('WebSocket error occurred.');
+        };
+
+        socket.onclose = () => {
+            showError('Connection lost. Please refresh the page.');
+            clearInterval(timerInterval);
+        };
+
+        function createBoard() {
+            return Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(CELL_VALUES.EMPTY));
+        }
+
+        function showError(message) {
+            const statusElement = document.getElementById('gameStatus');
+            statusElement.textContent = message;
+            statusElement.className = 'game-status error-message';
+        }
 
         function handleGameStateUpdate(state) {
-         console.log('%c[CLIENT] Handling game state update', 'color: magenta; font-weight: bold;');
-          
-          currentPlayer = state.currentPlayer;
-          gameActive = state.gameActive;
-          
-          if (state.shipBoards && state.shipBoards[playerNumber]) {
-              boards.own = JSON.parse(JSON.stringify(state.shipBoards[playerNumber]));
-              console.log('%c[CLIENT] Your board loaded from server', 'color: green; font-weight: bold;', {
-                  playerNumber: playerNumber,
-                  shipCount: boards.own.flat().filter(cell => cell === 1).length
-              });
-          }
-          
-          if (state.boards) {
-              const opponent = playerNumber === 1 ? 2 : 1;
-              
-              // Update YOUR board with opponent's attacks
-              if (state.attackHistory && state.attackHistory[opponent]) {
-                  state.attackHistory[opponent].forEach(attack => {
-                      const { row, col } = attack;
-                      // Only update cells that haven't been marked yet
-                      if (boards.own[row][col] === CELL_VALUES.SHIP) {
-                          boards.own[row][col] = CELL_VALUES.HIT;
-                      } else if (boards.own[row][col] === CELL_VALUES.EMPTY) {
-                          boards.own[row][col] = CELL_VALUES.MISS;
-                      }
-                  });
-              }
-              
-              // Update opponent's board with results of YOUR attacks
-              // Start fresh - only show attacks, not ships
-              boards.opponent = createBoard();
-              
-              // Overlay the attack results (hits and misses)
-              if (state.boards && state.boards[opponent]) {
-                  const attackBoard = state.boards[opponent];
-                  for (let i = 0; i < BOARD_SIZE; i++) {
-                      for (let j = 0; j < BOARD_SIZE; j++) {
-                          if (attackBoard[i][j] === CELL_VALUES.HIT || attackBoard[i][j] === CELL_VALUES.MISS) {
-                              boards.opponent[i][j] = attackBoard[i][j];
-                          }
-                      }
-                  }
-              }
-          }
+            console.log('%c[CLIENT] Handling game state update', 'color: magenta; font-weight: bold;');
 
-          updateBoards();
-          updateGameStatus();
-          updateControlsVisibility();
+            currentPlayer = state.currentPlayer;
+            gameActive = state.gameActive;
 
-          if (gameActive && !timerInterval) {
-              startTimer();
-          } else if (!gameActive) {
-              clearInterval(timerInterval);
-              timerInterval = null;
-          }
-      }
+            if (state.shipBoards && state.shipBoards[playerNumber]) {
+                boards.own = JSON.parse(JSON.stringify(state.shipBoards[playerNumber]));
+                console.log('%c[CLIENT] Your board loaded from server', 'color: green; font-weight: bold;', {
+                    playerNumber: playerNumber,
+                    shipCount: boards.own.flat().filter(cell => cell === 1).length
+                });
+            }
 
-      function startTimer() {
-          timeLeft = 30;
-          updateTimerDisplay();
-          
-          timerInterval = setInterval(() => {
-              timeLeft--;
-              updateTimerDisplay();
-          }, 1000);
-      }
+            if (state.boards) {
+                const opponent = playerNumber === 1 ? 2 : 1;
 
-      function updateTimerDisplay() {
-          const timerElement = document.getElementById('timer');
-          timerElement.textContent = timeLeft;
-          
-          if (timeLeft <= 10) {
-              timerElement.classList.add('warning');
-          } else {
-              timerElement.classList.remove('warning');
-          }
-      }
+                // Update YOUR board with opponent's attacks
+                if (state.attackHistory && state.attackHistory[opponent]) {
+                    state.attackHistory[opponent].forEach(attack => {
+                        const { row, col } = attack;
+                        // Only update cells that haven't been marked yet
+                        if (boards.own[row][col] === CELL_VALUES.SHIP) {
+                            boards.own[row][col] = CELL_VALUES.HIT;
+                        } else if (boards.own[row][col] === CELL_VALUES.EMPTY) {
+                            boards.own[row][col] = CELL_VALUES.MISS;
+                        }
+                    });
+                }
 
-      function createCell(isOwnBoard, row, col) {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.dataset.row = row;
-          cell.dataset.col = col;
-          
-          if (!isOwnBoard) {
-              cell.addEventListener('click', () => cellClick(row, col));
-          }
-          
-          return cell;
-      }
+                // Update opponent's board with results of YOUR attacks
+                // Start fresh - only show attacks, not ships
+                boards.opponent = createBoard();
 
-      function cellClick(row, col) {
-          console.log('%c[CLIENT] Cell clicked', 'color: blue; font-weight: bold;', { row, col, player: playerNumber, currentPlayer, gameActive });
-          
-          if (!gameActive || currentPlayer !== playerNumber) {
-              console.log('%c[CLIENT] Click ignored - not your turn or game not active', 'color: red;');
-              return;
-          }
+                // Overlay the attack results (hits and misses)
+                if (state.boards && state.boards[opponent]) {
+                    const attackBoard = state.boards[opponent];
+                    for (let i = 0; i < BOARD_SIZE; i++) {
+                        for (let j = 0; j < BOARD_SIZE; j++) {
+                            if (attackBoard[i][j] === CELL_VALUES.HIT || attackBoard[i][j] === CELL_VALUES.MISS) {
+                                boards.opponent[i][j] = attackBoard[i][j];
+                            }
+                        }
+                    }
+                }
+            }
 
-          if (boards.opponent[row][col] === CELL_VALUES.HIT || 
-              boards.opponent[row][col] === CELL_VALUES.MISS) {
-              console.log('%c[CLIENT] Cell already attacked', 'color: red;');
-              showError('Cell already attacked!');
-              return;
-          }
+            updateBoards();
+            updateGameStatus();
+            updateControlsVisibility();
 
-          console.log('%c[CLIENT] Sending attack to server', 'color: green; font-weight: bold;', { row, col });
-          
-          socket.send(JSON.stringify({
-              type: 'move',
-              row: row,
-              col: col
-          }));
-      }
+            if (gameActive && !timerInterval) {
+                startTimer();
+            } else if (!gameActive) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
 
-      function updateBoards() {
-          updateBoard('boardOwn', boards.own, true);
-          updateBoard('boardOpponent', boards.opponent, false);
-      }
+        function startTimer() {
+            updateTimerDisplay();
 
-      function updateBoard(elementId, boardData, isOwnBoard) {
-          const boardElement = document.getElementById(elementId);
-          
-          if (!boardElement.children.length) {
-              // First time - create all cells
-              for (let i = 0; i < BOARD_SIZE; i++) {
-                  for (let j = 0; j < BOARD_SIZE; j++) {
-                      const cell = createCell(isOwnBoard, i, j);
-                      boardElement.appendChild(cell);
-                  }
-              }
-          }
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+            }, 1000);
+        }
 
-          // Update cell visuals
-          const cells = boardElement.querySelectorAll('.cell');
+        function updateTimerDisplay() {
+            const timerElement = document.getElementById('timer');
+            timerElement.textContent = timeLeft;
 
-          for (let i = 0; i < BOARD_SIZE; i++) {
-              for (let j = 0; j < BOARD_SIZE; j++) {
-                  const index = i * BOARD_SIZE + j;
-                  const cell = cells[index];
-                  const value = boardData[i][j];
+            if (timeLeft <= 10) {
+                timerElement.classList.add('warning');
+            } else {
+                timerElement.classList.remove('warning');
+            }
+        }
 
-                  cell.classList.remove('ship', 'hit', 'miss', 'attacked');
+        function createCell(isOwnBoard, row, col) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.row = row;
+            cell.dataset.col = col;
 
-                  if (value === CELL_VALUES.SHIP) {
-                      // Only show ships on YOUR OWN board
-                      if (isOwnBoard) {
-                          cell.classList.add('ship');
-                      }
-                  } else if (value === CELL_VALUES.HIT) {
-                      cell.classList.add('hit', 'attacked');
-                  } else if (value === CELL_VALUES.MISS) {
-                      cell.classList.add('miss', 'attacked');
-                  }
-              }
-          }
-      }
+            if (!isOwnBoard) {
+                cell.addEventListener('click', () => cellClick(row, col));
+            }
 
-      function updateControlsVisibility() {
-          const startButton = document.getElementById('startGame');
-          const resetButton = document.getElementById('resetGame');
-          
-          startButton.disabled = gameActive;
-          resetButton.disabled = !gameActive;
-      }
+            return cell;
+        }
 
-      function updateGameStatus() {
-          const statusElement = document.getElementById('gameStatus');
-          const yourTurnElement = document.getElementById('yourTurn');
-          const currentPlayerDisplay = document.getElementById('currentPlayerDisplay');
+        function cellClick(row, col) {
+            console.log('%c[CLIENT] Cell clicked', 'color: blue; font-weight: bold;', { row, col, player: playerNumber, currentPlayer, gameActive });
 
-          if (!playerNumber) {
-              statusElement.textContent = 'Connecting...';
-              statusElement.className = 'game-status waiting';
-              yourTurnElement.textContent = '--';
-              currentPlayerDisplay.textContent = '--';
-              return;
-          }
+            if (!gameActive || currentPlayer !== playerNumber) {
+                console.log('%c[CLIENT] Click ignored - not your turn or game not active', 'color: red;');
+                return;
+            }
 
-          if (!gameActive) {
-              yourTurnElement.textContent = 'No';
-              currentPlayerDisplay.textContent = '--';
-              statusElement.textContent = 'Waiting to start...';
-              statusElement.className = 'game-status waiting';
-              return;
-          }
+            if (boards.opponent[row][col] === CELL_VALUES.HIT ||
+                boards.opponent[row][col] === CELL_VALUES.MISS) {
+                console.log('%c[CLIENT] Cell already attacked', 'color: red;');
+                showError('Cell already attacked!');
+                return;
+            }
 
-          // Check for win/loss
-          const allShipsHit = boards.opponent.every(row => 
-              row.every(cell => cell !== CELL_VALUES.SHIP && cell !== CELL_VALUES.EMPTY)
-          );
-          
-          if (allShipsHit) {
-              statusElement.textContent = '🎉 You Win!';
-              statusElement.className = 'game-status win';
-              return;
-          }
+            console.log('%c[CLIENT] Sending attack to server', 'color: green; font-weight: bold;', { row, col });
 
-          const yourBoardAllHit = boards.own.every(row => 
-              row.every(cell => cell !== CELL_VALUES.SHIP && cell !== CELL_VALUES.EMPTY)
-          );
-          
-          if (yourBoardAllHit) {
-              statusElement.textContent = '❌ You Lose!';
-              statusElement.className = 'game-status loss';
-              return;
-          }
+            socket.send(JSON.stringify({
+                type: 'move',
+                row: row,
+                col: col
+            }));
+        }
 
-          // Normal game status
-          currentPlayerDisplay.textContent = currentPlayer;
-          
-          if (currentPlayer === playerNumber) {
-              statusElement.textContent = '✓ Your turn!';
-              statusElement.className = 'game-status your-turn';
-              yourTurnElement.textContent = 'Yes';
-          } else {
-              statusElement.textContent = '⏳ Opponent\'s turn...';
-              statusElement.className = 'game-status opponent-turn';
-              yourTurnElement.textContent = 'No';
-          }
-      }
+        function updateBoards() {
+            updateBoard('boardOwn', boards.own, true);
+            updateBoard('boardOpponent', boards.opponent, false);
+        }
 
-      document.getElementById('startGame').addEventListener('click', () => {
-          console.log('%c[CLIENT] Start Game button clicked', 'color: green; font-weight: bold;');
-          socket.send(JSON.stringify({ type: 'start' }));
-          document.getElementById('startGame').disabled = true;
-      });
+        function updateBoard(elementId, boardData, isOwnBoard) {
+            const boardElement = document.getElementById(elementId);
 
-      document.getElementById('resetGame').addEventListener('click', () => {
-          console.log('%c[CLIENT] Reset Game button clicked', 'color: orange; font-weight: bold;');
-          socket.send(JSON.stringify({ type: 'reset' }));
-          clearInterval(timerInterval);
-          location.reload();
-      });
+            if (!boardElement.children.length) {
+                // First time - create all cells
+                for (let i = 0; i < BOARD_SIZE; i++) {
+                    for (let j = 0; j < BOARD_SIZE; j++) {
+                        const cell = createCell(isOwnBoard, i, j);
+                        boardElement.appendChild(cell);
+                    }
+                }
+            }
 
-  </script>
+            // Update cell visuals
+            const cells = boardElement.querySelectorAll('.cell');
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    const index = i * BOARD_SIZE + j;
+                    const cell = cells[index];
+                    const value = boardData[i][j];
+
+                    cell.classList.remove('ship', 'hit', 'miss', 'attacked');
+
+                    if (value === CELL_VALUES.SHIP) {
+                        if (isOwnBoard) {
+                            cell.classList.add('ship');
+                        }
+                    } else if (value === CELL_VALUES.HIT) {
+                        cell.classList.add('hit', 'attacked');
+                    } else if (value === CELL_VALUES.MISS) {
+                        cell.classList.add('miss', 'attacked');
+                    }
+                }
+            }
+        }
+
+        function updateControlsVisibility() {
+            const startButton = document.getElementById('startGame');
+            const resetButton = document.getElementById('resetGame');
+
+            startButton.disabled = gameActive;
+            resetButton.disabled = !gameActive;
+        }
+
+        function updateGameStatus() {
+            const statusElement = document.getElementById('gameStatus');
+            const yourTurnElement = document.getElementById('yourTurn');
+            const currentPlayerDisplay = document.getElementById('currentPlayerDisplay');
+
+            if (!playerNumber) {
+                statusElement.textContent = 'Connecting...';
+                statusElement.className = 'game-status waiting';
+                yourTurnElement.textContent = '--';
+                currentPlayerDisplay.textContent = '--';
+                return;
+            }
+
+            if (!gameActive) {
+                yourTurnElement.textContent = 'No';
+                currentPlayerDisplay.textContent = '--';
+                statusElement.textContent = 'Waiting to start...';
+                statusElement.className = 'game-status waiting';
+                return;
+            }
+
+            // Check for win/loss
+            const allShipsHit = boards.opponent.every(row =>
+                row.every(cell => cell !== CELL_VALUES.SHIP && cell !== CELL_VALUES.EMPTY)
+            );
+
+            if (allShipsHit) {
+                statusElement.textContent = '🎉 You Win!';
+                statusElement.className = 'game-status win';
+                return;
+            }
+
+            const yourBoardAllHit = boards.own.every(row =>
+                row.every(cell => cell !== CELL_VALUES.SHIP && cell !== CELL_VALUES.EMPTY)
+            );
+
+            if (yourBoardAllHit) {
+                statusElement.textContent = '❌ You Lose!';
+                statusElement.className = 'game-status loss';
+                return;
+            }
+
+
+            currentPlayerDisplay.textContent = currentPlayer;
+
+            if (currentPlayer === playerNumber) {
+                statusElement.textContent = '✓ Your turn!';
+                statusElement.className = 'game-status your-turn';
+                yourTurnElement.textContent = 'Yes';
+            } else {
+                statusElement.textContent = '⏳ Opponent\'s turn...';
+                statusElement.className = 'game-status opponent-turn';
+                yourTurnElement.textContent = 'No';
+            }
+        }
+
+        document.getElementById('startGame').addEventListener('click', () => {
+            console.log('%c[CLIENT] Start Game button clicked', 'color: green; font-weight: bold;');
+            socket.send(JSON.stringify({ type: 'start' }));
+            document.getElementById('startGame').disabled = true;
+        });
+
+        document.getElementById('resetGame').addEventListener('click', () => {
+            console.log('%c[CLIENT] Reset Game button clicked', 'color: orange; font-weight: bold;');
+            socket.send(JSON.stringify({ type: 'reset' }));
+            clearInterval(timerInterval);
+            location.reload();
+        });
+
+    </script>
 </body>
+
 </html>

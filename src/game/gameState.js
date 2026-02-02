@@ -9,6 +9,12 @@ class GameState {
 
     reset() {
         log('STATE', 'GameState reset to initial values');
+
+        if (this.turnTimer) {
+            clearTimeout(this.turnTimer);
+        }
+        this.timeLeft = 30;
+
         this.boards = {
             1: null,
             2: null
@@ -52,11 +58,43 @@ class GameState {
         this.currentPlayer = 1;
         this.gameActive = true;
         this.playersReady = 0;
+
+        this.timeLeft = 30;
+        this.startTurnTimer();
+
+        log('STATE', 'Timer started');
         
         log('STATE', 'Game initialization complete', { 
             currentPlayer: this.currentPlayer, 
             gameActive: this.gameActive 
         });
+    }
+
+    startTurnTimer() {
+        if (this.turnTimer) {
+            clearInterval(this.turnTimer);
+        }
+        
+        this.timeLeft = 30;
+        
+        const timerInterval = setInterval(() => {
+            this.timeLeft--;
+            
+            if (this.timeLeft <= 0) {
+                clearInterval(timerInterval);
+                log('STATE', `Turn timer expired for Player ${this.currentPlayer}`);
+                this.switchTurn();
+                
+                // Broadcast the state change after timer expires
+                const { broadcastGameState } = require('../websocket/broadcaster');
+                // Store clients reference to use here
+                if (this.clients) {
+                    broadcastGameState(this.clients, this);
+                }
+            }
+        }, 1000);
+        
+        this.turnTimer = timerInterval;
     }
 
     recordAttack(playerNumber, row, col) {
@@ -82,10 +120,14 @@ class GameState {
     switchTurn() {
         const oldPlayer = this.currentPlayer;
         this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
-        log('STATE', `Turn switched`, { from: oldPlayer, to: this.currentPlayer });
+        this.startTurnTimer();
+        log('STATE', `Turn switched, timer reset`, { from: oldPlayer, to: this.currentPlayer });
     }
 
     endGame() {
+        if (this.turnTimer) {
+            clearInterval(this.turnTimer);
+        }
         log('STATE', 'Game ended');
         this.gameActive = false;
     }
@@ -95,6 +137,7 @@ class GameState {
             type: 'gameState',
             currentPlayer: this.currentPlayer,
             gameActive: this.gameActive,
+            timeLeft: this.timeLeft,
             boards: this.boards,
             shipBoards: this.shipBoards,
             attackHistory: this.attackHistory

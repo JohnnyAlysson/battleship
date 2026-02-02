@@ -1,6 +1,8 @@
+const { log } = require('../config/logger');
 const { validateCoordinates } = require('../game/board');
 const { checkWin, hasAlreadyAttacked } = require('../game/rules');
 const { broadcastGameState, sendError } = require('./broadcaster');
+
 
 function handleMove(ws, playerNumber, data, clients, gameState) {
     // Validate: is it this player's turn?
@@ -42,7 +44,6 @@ function handleMove(ws, playerNumber, data, clients, gameState) {
         console.log(`Player ${playerNumber} won!`);
         broadcastGameState(clients, gameState);
     } else {
-        // Switch turns
         gameState.switchTurn();
         broadcastGameState(clients, gameState);
     }
@@ -54,7 +55,9 @@ function handleStart(data, clients, gameState) {
     
     if (gameState.playersReady === 2) {
         gameState.initialize();
-        console.log('Game initialized and started');
+        log('STATE', 'Game started', { 
+            gameActive: true
+        });
         broadcastGameState(clients, gameState);
     }
 }
