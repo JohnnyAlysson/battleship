@@ -67,10 +67,12 @@ battleship/
 
 ### Issues to be solved
 
-1. No player is winning: The winning condition should be achieved when one of the players destroys all the ship of the other player, but the checking winning condition function has a bug.
-3. The score system is not working properly, being updated correctly only for first player.
-4. countdown is not working.
-5. Still need to deploy on a server and maybe create a lobby system
+1. Add a Delay on the post victory
+2. Wrong ship count
+3. add a visual highlither on the players board
+4. Reset the player count when the conneciton is lost
+5. Deploy online
+6. lobby feature
 
 ---
 
@@ -144,8 +146,9 @@ battleship/
 - Socket.IO
 
 ### Problemas a serem solucionados
-
-1. Nenhum jogador ganha: A condição de vitória deveria acontecer quando um dos jogadores destruir todos os navios do oponente, porem a função check Winning Condition contem um bug.
-3. Sistema de escore não funciona: Ele só e atualizado no primeiro jogador.
-4. Contador regressivo: Não inicia a contagem, após alguns testes eu consegui fazer ele funcionar, porem ao contar o tempo havia um delay considerável e ocasionou em um bug pior nas jogadas
-5. Ainda não fiz o deploy em servidor e pretender criar um sistema de lobbies
+1. Delay no reset pos vitória
+2. Contagem errada nos navios
+3. Highlight visual no board to player
+4. Ao resetar jogo quebra conexao de ambos os player mas não reseta a contagem de players 
+5. Ainda não fiz o deploy em servidor 
+6. Criar um sistema de lobbies

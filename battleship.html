@@ -175,6 +175,30 @@
             font-size: 14px;
             color: #666;
         }
+        .rules {
+            background: #fff;
+            color: #2c3e50;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+            line-height: 1.7;
+            border: 2px solid #e8f4f8;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            background: linear-gradient(to bottom right, #f8fbff, #fff);
+        }
+
+        .rules::before {
+            content: "Rules";
+            display: block;
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+
+
     </style>
 </head>
 
@@ -190,6 +214,7 @@
                 <h3>Battleship</h3>
             </div>
 
+
             <div class="timer" id="timer">--</div>
 
             <div id="gameStatus" class="game-status waiting">Connecting...</div>
@@ -197,10 +222,24 @@
             <div style="border-top: 1px solid #ccc; padding-top: 10px;">
                 <p><strong>Your Turn:</strong> <span id="yourTurn">--</span></p>
                 <p><strong>Current Player:</strong> <span id="currentPlayerDisplay">--</span></p>
+                <p><strong>Ship parts Hit:</strong> <span id="shipPartsHit">--</span></p>
+                <p><strong>Ship parts destroyed:</strong> <span id="shipPartsDestroyed">--</span></p>
+                <p><strong>Ship parts remaining:</strong> <span id="shipPartsRemaining">--</span></p>
             </div>
 
             <button id="startGame">Start Game</button>
             <button id="resetGame">Reset Game</button>
+
+            <div class="rules">Rules: 
+                You have 30 seconds per turn to attack a cell on your opponent's board.<br>
+                There is 1 ship of each type: <br>
+                 Aircraft Carrier (5 spaces),<br>
+                 Battleship (4 spaces),<br>
+                 Cruiser (3 spaces),<br>
+                 Submarine (3 spaces),<br>
+                 and Destroyer (2 spaces)<br>
+                 Destroy all ships to win the game! ⚔️
+            </div>
         </div>
 
         <div class="board-section">
@@ -457,6 +496,33 @@
             startButton.disabled = gameActive;
             resetButton.disabled = !gameActive;
         }
+        
+        function updateShipStats() {
+        const shipPartsHitElement = document.getElementById('shipPartsHit');
+        const shipPartsDestroyedElement = document.getElementById('shipPartsDestroyed');
+        const shipPartsRemainingElement = document.getElementById('shipPartsRemaining');
+
+        if (!playerNumber || !gameActive) {
+            shipPartsHitElement.textContent = '--';
+            shipPartsDestroyedElement.textContent = '--';
+            shipPartsRemainingElement.textContent = '--';
+            return;
+        }
+
+
+
+        // Your board stats
+        const totalShipParts = boards.own.flat().filter(cell => cell === CELL_VALUES.SHIP).length;
+        const destroyedShipParts = boards.own.flat().filter(cell => cell === CELL_VALUES.HIT).length;
+        const remainingShipParts = totalShipParts - destroyedShipParts;
+
+        // Your successful attacks on opponent's board
+        const successfulAttacks = boards.opponent.flat().filter(cell => cell === CELL_VALUES.HIT).length;
+
+        shipPartsHitElement.textContent = successfulAttacks;
+        shipPartsDestroyedElement.textContent = destroyedShipParts;
+        shipPartsRemainingElement.textContent = remainingShipParts;
+         }
 
         function updateGameStatus() {
             const statusElement = document.getElementById('gameStatus');
@@ -468,6 +534,7 @@
                 statusElement.className = 'game-status waiting';
                 yourTurnElement.textContent = '--';
                 currentPlayerDisplay.textContent = '--';
+                updateShipStats(); 
                 return;
             }
 
@@ -512,6 +579,7 @@
                 statusElement.className = 'game-status opponent-turn';
                 yourTurnElement.textContent = 'No';
             }
+        updateShipStats();
         }
 
         document.getElementById('startGame').addEventListener('click', () => {
