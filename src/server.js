@@ -82,7 +82,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
     log('CONNECTION', `✓ Server is running`, { port: PORT, url: `http://localhost:${PORT}` });
 });

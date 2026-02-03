@@ -1,0 +1,49 @@
+# Fly.io Configuration for Battleship Game
+# This file configures the deployment on Fly.io
+
+app = "battleship-game"
+primary_region = "gig"  # Change to your preferred region (e.g., "sjc" for US West, "iad" for US East, "lhr" for Europe)
+
+[build]
+  builder = "heroku"    # Use Heroku buildpacks for Node.js
+
+[env]
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 3000
+  
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 200
+    soft_limit = 150
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+[checks]
+  [checks.http_check]
+    grace_period = "30s"
+    interval = "15s"
+    method = "get"
+    path = "/"
+    protocol = "http"
+    timeout = "5s"
