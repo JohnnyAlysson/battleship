@@ -264,7 +264,9 @@
             opponent: null
         };
 
-        const socket = new WebSocket(`ws://${window.location.host}`);
+        const socket = new WebSocket(`wss://${window.location.host}`);
+
+        console.log(`%c[CLIENT] WebSocket connecting... url: wss://${window.location.host}`, 'color: cyan; font-weight: bold;');
 
         socket.onopen = () => {
             console.log('%c[WEBSOCKET] Connection established', 'color: cyan; font-weight: bold;');
